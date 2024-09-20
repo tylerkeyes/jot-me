@@ -34,7 +34,7 @@ type service struct {
 }
 
 var (
-	dburl            = os.Getenv("DB_URL")
+	dburl            = os.Getenv("JOT_DB_URL")
 	dbInstance       *service
 	defaultTableName = "general"
 )
@@ -58,7 +58,6 @@ func New() Service {
 
 	// create the 'general' table for uncategorized notes,
 	// and the '_group_names' table for tracking enabled categories
-	fmt.Println("initalizing db")
 	dbInstance.CreateNamesTable()
 	dbInstance.CreateGroupTable(defaultTableName)
 	return dbInstance
@@ -79,10 +78,10 @@ func (s *service) WriteNote(groupName string, note string) error {
 		s.CreateGroupTable(table)
 	}
 
-	queryStr := `INSERT INTO %s (note) VALUES ('%s');`
-	query := fmt.Sprintf(queryStr, table, note)
+	queryStr := `INSERT INTO %s (note) VALUES (?);`
+	query := fmt.Sprintf(queryStr, table)
 
-	_, err := s.db.Exec(query)
+	_, err := s.db.Exec(query, note)
 	if err != nil {
 		fmt.Printf("could not save the note in the group %v\n", groupName)
 		return err
@@ -97,6 +96,21 @@ func (s *service) CheckTableExists(tableName string) bool {
 	var name string
 	err := s.db.QueryRow(query, tableName).Scan(&name)
 	return err == nil
+}
+
+// AddGroupName adds the new group to the stored list of groups
+func (s *service) AddGroupName(groupName string) {
+	groupNameExists := `SELECT group_name FROM _group_names WHERE group_name=?`
+	var expected string
+	err := s.db.QueryRow(groupNameExists, groupName).Scan(&expected)
+	if err != nil {
+		// save the groupName if not in the _group_names table
+		query := `INSERT INTO _group_names (group_name) VALUES (?);`
+		_, err = s.db.Exec(query, groupName)
+		if err != nil {
+			fmt.Printf("could not save the new group\n")
+		}
+	}
 }
 
 // CreateGroupTable creates a table with the name groupName.
@@ -115,23 +129,8 @@ func (s *service) CreateGroupTable(groupName string) {
 		os.Exit(1)
 	}
 
+	// save the new group
 	s.AddGroupName(groupName)
-}
-
-// AddGroupName adds the new group to the stored list of groups
-func (s *service) AddGroupName(groupName string) {
-	groupNameExists := `SELECT group_name FROM _group_names WHERE group_name=?`
-	var expected string
-	err := s.db.QueryRow(groupNameExists, groupName).Scan(&expected)
-	if err == nil {
-		return
-	}
-
-	query := `INSERT INTO _group_names (group_name) VALUES (?);`
-	_, err = s.db.Exec(query, groupName)
-	if err != nil {
-		fmt.Printf("could not save the new group\n")
-	}
 }
 
 // CreateNamesTable creates the '_group_names' table.

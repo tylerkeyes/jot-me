@@ -12,10 +12,8 @@ import (
 var (
 	Version = "0.0.1"
 
-	db database.Service
-
-	noteGroup    string
-	defaultGroup = "general"
+	db        database.Service
+	noteGroup string
 
 	rootCmd = &cobra.Command{
 		Use:   "jot",
