@@ -24,6 +24,10 @@ type Service interface {
 	// Any errors will be returned, else nil.
 	WriteNote(groupName string, note string) error
 
+	// ReadTable queries the 'groupName' table, and returns the results
+	// as a string slice.
+	ReadTable(groupName string) ([]string, error)
+
 	// Close terminates the database connection.
 	// It returns an error if the connection cannot be closed.
 	Close() error
@@ -88,6 +92,33 @@ func (s *service) WriteNote(groupName string, note string) error {
 	}
 
 	return nil
+}
+
+// ReadTable queries the 'groupName' table, and returns the results
+// as a string slice.
+func (s *service) ReadTable(groupName string) ([]string, error) {
+	query := fmt.Sprintf("SELECT note FROM %s;", groupName)
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var notes []string
+
+	for rows.Next() {
+		var note string
+		if err := rows.Scan(&note); err != nil {
+			return notes, err
+		}
+		notes = append(notes, note)
+	}
+	if err = rows.Err(); err != nil {
+		return notes, err
+	}
+
+	return notes, nil
 }
 
 // CheckTableExists checks if the tableName exists as a table.

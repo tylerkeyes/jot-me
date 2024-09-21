@@ -27,6 +27,7 @@ tmp/
 
 # Project build
 main
+jot
 *templ.go
 
 # Local SQLITE databases
